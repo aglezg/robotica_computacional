@@ -51,53 +51,36 @@ def mostrar(objetivos,ideal,trayectoria):
 
 def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
 
-#########################################################################################################################
-
   # Buscar la localización más probable del robot, a partir de su sistema
   # sensorial, dentro de una región cuadrada de centro "centro" y lado "2*radio".
-  # Como información tendré las medidas real
-  imagen = []  # Array para almacenar los errores
-  index = (0, 0)  # Índice del error mínimo en el array
-  minError = 1000000  # Valor del error mínimo
-  idealPose = ideal.pose()  # Posición ideal
-  realSense = real.sense(balizas)  # Posición real de sensado
+  imagen = []
+  inc = 0.05                            # Incremento
+  err = float('inf')                    # Error de medida
+  idealPose = [-10, -1, -1]             # Posición ideal
+  markerDistances = real.sense(balizas) # Distancia a balizas
 
-  # Almacenamos el error previo a la localización
-  errorPrevio = ideal.measurement_prob(realSense, balizas)
-
-  # Bucle de localización
-  for i in np.arange(-radio, radio, 0.1):
+  for i in np.arange(-radio, radio, inc):
     imagen.append([])
-    for j in np.arange(-radio, radio, 0.1):
-      # Establecemos la posición ideal
-      ideal.set(centro[0] + i, centro[1] + j, realSense[-1])
-      # Por cada posición del radio almacenamos el valor del error
-      errorActual = ideal.measurement_prob(realSense, balizas)
-      imagen[-1].append(errorActual)
-      # Actualizamos el error mínimo
-      # Voy comparando de que si es mas probable que mi robot está ahí.
-      if errorActual < minError:
-        minError = errorActual
-        index = (i, j)
+    for j in np.arange(-radio, radio, inc):
+      # Posicion ideal de acuerdo a la iteración
+      ideal.set(centro[0] + i, centro[1] + j, markerDistances[-1])
+      # Obtención del nuevo error
+      actualErr = ideal.measurement_prob(markerDistances, balizas)
+      # Guardamos el error en la matriz de imagen
+      imagen[-1].append(actualErr)
+      # Comprobamos errores
+      if actualErr < err:
+        err = actualErr
+        idealPose = ideal.pose()
 
-  # Si la nueva localización es peor que la anterior, no modificamos la posición
-  # Con esto ya tendré mi robot ideal recolocalizado.
-  if errorPrevio >= minError:
-    ideal.set(centro[0] + index[0], centro[1] + index[1], realSense[-1])
-  else:
-    ideal.set(idealPose[0], idealPose[1], realSense[-1])
-  # Establecemos la mejor posición
-  ideal.set(centro[0] + index[0], centro[1] + index[1], realSense[-1])
-
-#########################################################################################################################
+  # Pose final, con el menor error asignado
+  ideal.set(*idealPose)
 
   if mostrar:
     plt.ion()  # modo interactivo
     plt.xlim(centro[0] - radio, centro[0] + radio)
     plt.ylim(centro[1] - radio, centro[1] + radio)
-    imagen = np.rot90(np.array(imagen))
-    print(imagen)
-    # imagen.reverse()
+    imagen.reverse()
     plt.imshow(
       imagen,
       extent=[
@@ -108,17 +91,13 @@ def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
       ],
     )
     balT = np.array(balizas).T.tolist()
-    plt.plot(idealPose[0], idealPose[1], "D", c="#ffffff", ms=10, mew=2)
+    #plt.plot(idealPose[0], idealPose[1], "D", c="#ffffff", ms=10, mew=2)
     plt.plot(balT[0], balT[1], "or", ms=10)
     plt.plot(ideal.x, ideal.y, "D", c="#ff00ff", ms=10, mew=2)
     plt.plot(real.x, real.y, "D", c="#00ff00", ms=10, mew=2)
     plt.show()
     raw_input()
     plt.clf()
-#########################################################################################################################
-
-  # Devolvemos la posición
-  return centro[0] + index[0], centro[1] + index[1]
 
 # Definición del robot:
 P_INICIAL = [0., 4., 0.]   # Pose inicial (posición y orientación)
@@ -144,7 +123,7 @@ if len(sys.argv) < 2 or int(sys.argv[1]) < 0 or int(sys.argv[1]) >= len(trayecto
 objetivos = trayectorias[int(sys.argv[1])]
 
 # Definición de constantes:
-EPSILON = 0.1                    # Umbral de distancia
+EPSILON = .1                     # Umbral de distancia
 V = V_LINEAL / FPS               # Metros por fotograma
 W = V_ANGULAR * pi / (180 * FPS) # Radianes por fotograma
 
@@ -165,10 +144,9 @@ espacio = 0.0
 random.seed(0)
 #random.seed(datetime.now())
 
-# Localizar inicialmente al robot
-localizacion(objetivos, real, ideal, ideal.pose(), 5, 0)
-mostrarRobot = 1
-UMBRAL = 0.8
+# Localización inicial
+localizacion(objetivos, real, ideal, ideal.pose(), 6, 1)
+LIMIT = 0.7
 
 for punto in objetivos:
   while distancia(tray_ideal[-1], punto) > EPSILON and len(tray_ideal) <= 1000:
@@ -194,21 +172,11 @@ for punto in objetivos:
     tray_real.append(real.pose())
     tray_ideal.append(ideal.pose())
 
-    # Corregir posición
-    # Si estamos alejados de la posición ideal (según umbral), localizamos.
-    # Cuando divergen las posiciones llamo a localiza.
-    # Divergen cuando las medidas de las distancia de 
-    # cada uno de los robots a las balizas son diferentes.
-#########################################################################################################################
-    if ideal.measurement_prob(real.sense(objetivos), objetivos) > UMBRAL:
-      pose = ideal.pose()
-      newPose = localizacion(objetivos, real, ideal, ideal.pose(), 3, mostrarRobot)
-      mostrarRobot = 0
-      print("\n| HEMOS RELOCALIZADO |\n")
-      print("Pose Objetivo: ", newPose)
-      print("Pose Imaginada: ", pose)
-      print("Pose Real: ", real.pose())
-#########################################################################################################################
+    # Relocalización en caso de superar el LIMIT
+    err = ideal.measurement_prob(real.sense(objetivos), objetivos)
+    if err > LIMIT:
+      localizacion(objetivos, real, ideal, ideal.pose(), .08, 0)
+
     espacio += v
     tiempo += 1
 
