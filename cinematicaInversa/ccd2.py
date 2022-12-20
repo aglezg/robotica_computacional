@@ -60,12 +60,11 @@ def cin_dir(th,a):
 # Cálculo de la cinemática inversa de forma iterativa por el método CCD
 
 # Valores articulares
-articulations = 0                            # Número de articulaciones
-th=[]                                # Ángulos
-a =[]                                # Logitud de articulaciones
-type = [] # Tipo de articulación
+articulations = 0                  # Número de articulaciones
+th=[]                              # Ángulos
+a =[]                              # Logitud de articulaciones
+type = []                          # Tipo de articulación
 limits = []                        # Límites de las articulaciones
-
 
 EPSILON = .01
 
@@ -73,7 +72,7 @@ plt.ion() # modo interactivo
 
 # Introducción del punto para la cinemática inversa
 if len(sys.argv) != 4:
-  sys.exit("python " + sys.argv[0] + "[input.txt]")
+  sys.exit("python " + sys.argv[0] + " x y [input.txt]")
 objetivo=[float(sys.argv[1]), float(sys.argv[2])]
 
 # Lectura de  los datos ********************************************************
@@ -88,32 +87,40 @@ articulations = int(reader)
 
 for i in range(articulations):
   reader = input.readline() # Tipo de articulación
-  reader = reader[:-1]
-  print ("reader == ", reader)
+  if (reader[-1] == "\n"):
+    reader = reader[:-1]
   if (reader != "prismatic" and reader != "rotation"):
     print("El tipo de articulación debe ser 'prismatic' o 'rotation'")
     exit(1)
   type.append(reader)
   
   reader = input.readline() # Angulo inicial de la articulacion
-  reader = reader[:-1]
+  if (reader[-1] == "\n"):
+    reader = reader[:-1]
   if (reader.isdigit() == False or int(reader) < 0):
     print("Los ángulos de las articulaciones deben ser numéricos y mayores que cero")
   th.append(int(reader))
 
   reader = input.readline() # Longitud inicial de la articulacion
-  reader = reader[:-1]
+  if (reader[-1] == "\n"):
+    reader = reader[:-1]
   if (reader.isdigit() == False or int(reader) < 0):
     print("Las longitudes de las articulaciones deben ser numéricas y mayores que cero")
   a.append(int(reader))
 
   reader = input.readline() # Limite de la articulacion
-  reader = reader[:-1]
+  if (reader[-1] == "\n"):
+    reader = reader[:-1]
   if (reader.isdigit() == False or int(reader) < 0):
     print("Los límites de las articulaciones deben ser numéricos y mayores que cero")
   limits.append(int(reader))
 
 L = sum(a) # variable para representación gráfica
+
+print("th =", th)
+print("a =", a)
+print("type=", type)
+print("limits=", limits)
 
 # Cálculos ********************************************************
 
@@ -129,7 +136,7 @@ while (dist > EPSILON and abs(prev-dist) > EPSILON/100.):
   prev = dist
   # Para cada combinación de articulaciones:
   for i in range(len(th)):
-    # cálculo de la cinemática inversa:
+    # Cálculo de la cinemática inversa:
     if (type[-1 -i] == "rotation"):
       # Cálculo del primer ángulo
       oppositeAlpha = objetivo[1] - O[i][-2 -i][1]
@@ -145,6 +152,12 @@ while (dist > EPSILON and abs(prev-dist) > EPSILON/100.):
 
       # Actualización de theta
       th[-1 - i] += (alpha - alpha2)
+
+      # Aplicamos los límites a theta
+      if (th[-1 -i] > np.radians(limits[-1 -i])):
+        th[-1 -i] = np.radians(limits[-1 -i])
+      elif (th[-1 -i] < -np.radians(limits[-1 -i])):
+        th[-1 -i] = -np.radians(limits[-1 -i])
   
     elif (type[-1 -i] == "prismatic"):
       # Cálculo de ángulo 'w'
@@ -157,6 +170,12 @@ while (dist > EPSILON and abs(prev-dist) > EPSILON/100.):
 
       # Actualizamos 'a'
       a[-1 -i] += d
+
+      # Comprobamos los límites
+      if (a[-1 -i] > limits[-1 -i]):
+        a[-1 -i] = limits [-1 -i]
+      elif(a[-1 -i] < 0):
+        a[-1 -i] = 0
 
       # Actualizamos L
       L = sum(a)
