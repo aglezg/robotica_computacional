@@ -56,8 +56,9 @@ def localizacion(balizas, real, ideal, centro, radio, mostrar=0):
   imagen = []
   inc = 0.05                            # Incremento
   err = float('inf')                    # Error de medida
-  idealPose = [-10, -1, -1]             # Posición ideal
+  idealPose = [-1, -1, -1]              # Posición ideal
   markerDistances = real.sense(balizas) # Distancia a balizas
+  
 
   for i in np.arange(-radio, radio, inc):
     imagen.append([])
@@ -146,7 +147,7 @@ random.seed(0)
 
 # Localización inicial
 localizacion(objetivos, real, ideal, ideal.pose(), 6, 1)
-LIMIT = 0.7
+LIMIT = .85
 
 for punto in objetivos:
   while distancia(tray_ideal[-1], punto) > EPSILON and len(tray_ideal) <= 1000:
@@ -175,7 +176,7 @@ for punto in objetivos:
     # Relocalización en caso de superar el LIMIT
     err = ideal.measurement_prob(real.sense(objetivos), objetivos)
     if err > LIMIT:
-      localizacion(objetivos, real, ideal, ideal.pose(), .08, 0)
+      localizacion(objetivos, real, ideal, ideal.pose(), 1, 0)
 
     espacio += v
     tiempo += 1

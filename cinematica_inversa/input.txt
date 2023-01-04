@@ -1,13 +1,13 @@
 3
 rotation
 0
-2
-180
+5
+90
 rotation
 0
 5
-180
+90
 rotation
 0
 5
-180
+90

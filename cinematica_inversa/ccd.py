@@ -80,7 +80,6 @@ input = open(sys.argv[3])
 reader = input.readline()
 reader = reader[:-1]
 if (reader.isdigit() == False):
-   print ("READER == ", reader)
    print("El número de articulaciones no es un dígito numérico, revise el fichero de entrada")
    exit(1)
 articulations = int(reader)
